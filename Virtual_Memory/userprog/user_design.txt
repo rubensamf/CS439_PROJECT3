@@ -1,0 +1,281 @@
+                     +--------------------------+
+                     |           CS 439         |
+                     | PROJECT 2: USER PROGRAMS |
+                     |      DESIGN DOCUMENT     |
+                     +--------------------------+
+
+****EACH student submits a (unique) design document.****
+
+---- Name ----
+
+>> Fill your name, UT EID, CS login, email address, and unique number:
+
+Name: Josue G. Roman
+EID: JGR397
+CS login: jroman
+Email address: jozue.roman@gmail.com
+Unique Number: 53425
+
+
+Slip days used on this project:
+
+---- GROUP ----
+
+>> Fill the names, UT EIDs, CS logins, email addresses, and unique numbers
+>> of your group members.  Also fill in each person's ranking on the 
+>> partner evaluation scale, as determined by you.
+
+
+Name1: Raymond Collins
+UTEID1: rsc558
+cs login: kelinsi
+Email: raymond.s.collins@gmail.com
+unique number: 53425
+Ranking (scale below): Very Good
+
+
+Name: Ruben Fitch
+UTEID: rsf293
+cs login: rubensam
+Email: rubensamf@utexas.edu
+Unique Number: 53435
+Ranking (scale below): Very Good
+
+
+
+
+---- PARTNER EVALUATION SCALE ----
+
+>> Excellent: Consistently went above and beyond - tutored others, carried
+>> more than his/her fair share of the load.
+
+>> Very Good: Consistently did what he/she was supposed to do, very well
+>> prepared and cooperative.
+
+>> Satisfactory: Usually did what he/she was supposed to do, minimally
+>> prepared and cooperative.
+
+>> Marginal: Sometimes failed to show up, rarely prepared.
+
+>> Deficient: Often failed to show up, rarely prepared.
+
+>> Unsatisfactory: Consistently failed to show up, unprepared.
+
+>> Superficial: Practically no participation.
+
+>> No Show: No participation at all.
+
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, notes for the
+>> TAs, or extra credit, please give them here.
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation, course
+>> text, lecture notes, and course staff.
+
+			   ARGUMENT PASSING
+			   ================
+
+---- DATA STRUCTURES ----
+
+>> A1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+static char** argv = palloc_get_page(PAL_USER);
+ -memory allocated to store each of the arguments, pointer
+
+int argc = 0;
+ -counter to keep track of the number of arguments, gets incremented by one on every argument added to argv
+
+int word_align_size = 0;
+ -keeps track of the size of the arguments being added to the stack used for later calculating the needed word align size 
+
+static char *my_file_name;
+ -global varialble storing a copy of the filename plus its arguments, the local
+  copy is being stripped down to only the executable name and given to   process_execute
+
+---- ALGORITHMS ----
+
+>> A2: Briefly describe how you implemented argument parsing.  How do
+>> you arrange for the elements of argv[] to be in the right order?
+>> How do you avoid overflowing the stack page?
+
+-We use the helpel tokeziner loop given in the Pintos documentation.
+ We don't care for the data arguments to be in order, we simply add those 
+ to memory and keep track of their addresses, the addresses are stored in a list
+ in order, hecen we can access them front to back or back to front as needed.
+
+---- RATIONALE ----
+
+>> A3: Why does Pintos implement strtok_r() but not strtok()?
+
+ -Because strtok() is not thread-safe.
+
+>> A4: In Pintos, the kernel separates commands into a executable name
+>> and arguments.  In Unix-like systems, the shell does this
+>> separation.  Identify at least two advantages of the Unix approach.
+
+1) Its faster for the shell to do it, since the OS kernel should not be used
+   for such kind of work, non Kernel related, having the shell do it increases     performance in the OS as a whole
+2) It's safer, if some of the arguments get corrupet, are missing, etc, the shell may crash rather than the entire kernal
+
+			     SYSTEM CALLS
+			     ============
+
+---- DATA STRUCTURES ----
+
+>> B1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+   int next_fd;
+   -a counter to know the correct number to assignt for the next file descriptor
+
+   int exit_status;
+   -thread field storing the exit status passes from the system calls
+
+   struct list new_file_des_list;
+   -per thread structure storing a list of current file descriptors
+
+   struct file_descriptor
+    {
+      int fd;
+      struct file *file;
+      struct list_elem elem;
+    };
+    -file descriptor structure to associate each file to a file descriptor number  and stored that in a list
+
+>> B2: Describe how file descriptors are associated with open files.
+>> Are file descriptors unique within the entire OS or just within a
+>> single process?
+  -File descriptors are unique just within a single process, one file descriptor is associated with every call to a system call, for example an open for the same file would create two file descriptor each pointin to the same file
+
+---- ALGORITHMS ----
+
+>> B3: Describe your code for reading and writing user data from the
+>> kernel.
+
+   Write: we call the write function from the provided filesystem for every fd other than fd1, in that case we use putbuf to write to the console. 
+   In read, if given a valin in rage file descriptor we use the given read funtion from the provided filesystem to read from the file, unless fd is fd1 or fd1 in which cases we terminate the process.
+
+>> B4: Suppose a system call causes a full page (4,096 bytes) of data
+>> to be copied from user space into the kernel.  What is the least
+>> and the greatest possible number of inspections of the page table
+>> (e.g. calls to pagedir_get_page()) that might result?  What about
+>> for a system call that only copies 2 bytes of data?  Is there room
+>> for improvement in these numbers, and how much?
+  - 1 for both cases
+
+>> B5: Briefly describe your implementation of the "wait" system call
+>> and how it interacts with process termination.
+   -naive wait for 3 seconds implementation
+
+>> B6: Any access to user program memory at a user-specified address
+>> can fail due to a bad pointer value.  Such accesses must cause the
+>> process to be terminated.  System calls are fraught with such
+>> accesses, e.g. a "write" system call requires reading the system
+>> call number from the user stack, then each of the call's three
+>> arguments, then an arbitrary amount of user memory, and any of
+>> these can fail at any point.  This poses a design and
+>> error-handling problem: how do you best avoid obscuring the primary
+>> function of code in a morass of error-handling?  Furthermore, when
+>> an error is detected, how do you ensure that all temporarily
+>> allocated resources (locks, buffers, etc.) are freed?  In a few
+>> paragraphs, describe the strategy or strategies you adopted for
+>> managing these issues.  Give an example.
+ -Following the same skeleton for error-handling makes it clearer for what part of the code does only error-handling and which part actually performs real work. 
+
+/extract the filename 
+          char *file_name = (char*)dir[1];  
+          
+          if(file_name != NULL && is_user_vaddr(file_name))
+          {
+                struct thread *currentThread = thread_current();
+                uint32_t *pd = currentThread->pagedir;  
+                if(pagedir_get_page(pd, file_name) == NULL)
+                {
+                    currentThread->exit_status = -1;
+                    thread_exit();
+                }
+                else
+                {
+                    if(file_name==NULL|| *file_name==NULL || file_name=="")
+                      {
+                        thread_current()->exit_status = -1;
+                        thread_exit();
+                      }
+                      //DO WORK
+                      //extract file size
+                      unsigned initial_size = (unsigned)dir[2];  
+                      //printf("File: %s\nSize: %d\n",file,initial_size);
+
+
+                      printf("(%s) create %s\n",thread_current()->name,file_name);
+                      frame->eax = filesys_create(file_name,initial_size);   
+
+                      //printf("SYS_CREATE return value=%d",frame->eax);
+                }
+            }
+            else
+          {
+                currentThread->exit_status = -1;
+                thread_exit();
+          }
+
+
+---- SYNCHRONIZATION ----
+
+>> B7: The "exec" system call returns -1 if loading the new executable
+>> fails, so it cannot return before the new executable has completed
+>> loading.  How does your code ensure this?  How is the load
+>> success/failure status passed back to the thread that calls "exec"?
+
+>> B8: Consider parent process P with child process C.  How do you
+>> ensure proper synchronization and avoid race conditions when P
+>> calls wait(C) before C exits?  After C exits?  How do you ensure
+>> that all resources are freed in each case?  How about when P
+>> terminates without waiting, before C exits?  After C exits?  Are
+>> there any special cases?
+
+---- RATIONALE ----
+
+>> B9: Why did you choose to implement access to user memory from the
+>> kernel in the way that you did?
+-it was recommenede on the documentation, and seesm more straigforward,
+don't have to deal with in-line assembly
+
+>> B10: What advantages or disadvantages can you see to your design
+>> for file descriptors?
+-Disadvantage is that we need to iterate over a list of file descriptors in order to find the one we need for each system call, the advange being a cleaner implementation
+
+>> B11: The default tid_t to pid_t mapping is the identity mapping.
+>> If you changed it, what advantages are there to your approach?
+-Didn't changed mapping
+
+
+			   SURVEY QUESTIONS
+			   ================
+
+Answering these questions is optional, but it will help us improve the
+course in future semesters.  Feel free to tell us anything you
+want--these questions are just to spur your thoughts.  You may also
+choose to respond anonymously in the course evaluations at the end of
+the semester.
+
+>> In your opinion, was this assignment, or any one of the three problems
+>> in it, too easy or too hard?  Did it take too long or too little time?
+
+>> Did you find that working on a particular part of the assignment gave
+>> you greater insight into some aspect of OS design?
+
+>> Is there some particular fact or hint we should give students in
+>> future semesters to help them solve the problems?  Conversely, did you
+>> find any of our guidance to be misleading?
+
+>> Do you have any suggestions for the TAs to more effectively assist
+>> students, either for future semesters or the remaining projects?
+
+>> Any other comments? x.x
